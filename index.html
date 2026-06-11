@@ -406,6 +406,7 @@ $('captureForm').addEventListener('submit', async e=>{
 /* ============ Google (Calendar + Gmail) ============ */
 let tokenClient = null, gisReady = false;
 function gisLoaded(){ gisReady = true; if(S.gClient) initGIS() }
+let _silentTry = false;
 function initGIS(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: S.gClient,
@@ -414,14 +415,30 @@ function initGIS(){
       if(resp.access_token){
         S.gToken = { tok: resp.access_token, exp: Date.now() + (resp.expires_in-90)*1000 };
         loadGoogle();
-      }
+      } else if(resp.error){ toast('Google sign-in failed: '+resp.error) }
+    },
+    error_callback: err => {
+      if(_silentTry){ _silentTry = false; return }   // silent attempt failed quietly; button remains
+      toast('Google sign-in didn’t complete — '+(err && err.type ? err.type : 'try again'));
     }
   });
+  // try a quiet reconnect on load if the user connected before
+  if(!S.gToken && localStorage.getItem('sb_gtoken')){ _silentTry = true; tokenClient.requestAccessToken({prompt:''}) }
 }
-function connectGoogle(){ if(!tokenClient && gisReady && S.gClient) initGIS(); if(tokenClient) tokenClient.requestAccessToken({prompt:''}) ; else toast('Add your Google Client ID in Settings') }
+function connectGoogle(){
+  if(!tokenClient && gisReady && S.gClient) initGIS();
+  if(!tokenClient){ toast('Add your Google Client ID in Settings'); return }
+  _silentTry = false;
+  tokenClient.requestAccessToken();   // default prompt: shows the Google popup when needed
+}
 async function gFetch(url){
   const r = await fetch(url, {headers:{Authorization:'Bearer '+S.gToken}});
-  if(r.status===401||r.status===403){ localStorage.removeItem('sb_gtoken'); throw new Error('auth') }
+  if(r.status===401){ localStorage.removeItem('sb_gtoken'); throw new Error('auth') }
+  if(r.status===403){
+    let reason=''; try{ const j = await r.json(); reason = j.error?.message || '' }catch(_){}
+    if(/disabled|has not been used/i.test(reason)) throw new Error('api-disabled');
+    localStorage.removeItem('sb_gtoken'); throw new Error('auth');
+  }
   if(!r.ok) throw new Error('Google error '+r.status);
   return r.json();
 }
@@ -471,6 +488,7 @@ async function loadAgenda(){
     box.innerHTML = h || '<div class="empty">No events today or tomorrow.</div>';
   }catch(e){
     if(e.message==='auth') googleGate('agendaBox','Agenda');
+    else if(e.message==='api-disabled') box.innerHTML = '<div class="err">The Google Calendar API isn’t enabled in the Cloud project that owns your Client ID. Enable it, wait 2 minutes, then refresh.</div>';
     else box.innerHTML = `<div class="err">Couldn’t load calendar (${esc(e.message)}).</div>`;
   }
 }
@@ -498,6 +516,7 @@ async function loadMail(){
     box.innerHTML = h;
   }catch(e){
     if(e.message==='auth') googleGate('mailBox','Mail');
+    else if(e.message==='api-disabled') box.innerHTML = '<div class="err">The Gmail API isn’t enabled in the Cloud project that owns your Client ID. Enable it, wait 2 minutes, then refresh.</div>';
     else box.innerHTML = `<div class="err">Couldn’t load mail (${esc(e.message)}).</div>`;
   }
 }
