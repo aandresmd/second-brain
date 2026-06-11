@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Second Brain</title>
+<meta name="description" content="Adam's second brain — tasks, agenda, capture, mail.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F6F1E7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Second Brain">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F1E7; --card:#FFFDF8; --ink:#3D3A33; --muted:#8C8678; --line:#E9E2D2;
+  --sage:#7C9082; --sage-deep:#5C7263; --sage-soft:#EAF0EA;
+  --terra:#C26A45; --terra-soft:#F7E8E0; --gold:#C9A45C;
+  --radius:18px; --shadow:0 2px 10px rgba(92,86,70,.08), 0 8px 30px rgba(92,86,70,.06);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:15px; line-height:1.45;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.wrap{max-width:1080px; margin:0 auto; padding:20px 16px 60px}
+header{display:flex; align-items:flex-end; justify-content:space-between; padding:8px 4px 18px}
+h1{font-family:'Fraunces',serif; font-weight:600; font-size:30px; margin:0; letter-spacing:-.02em}
+.date{color:var(--muted); font-size:14px; margin-top:3px}
+.hbtns{display:flex; gap:8px}
+.iconbtn{
+  border:1px solid var(--line); background:var(--card); color:var(--muted);
+  width:40px; height:40px; border-radius:13px; cursor:pointer; font-size:17px;
+  display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
+  transition:transform .15s;
+}
+.iconbtn:active{transform:scale(.93)}
+.grid{display:grid; gap:16px; grid-template-columns:1fr}
+@media(min-width:860px){
+  .grid{grid-template-columns:1.15fr .85fr; align-items:start}
+  .col{display:flex; flex-direction:column; gap:16px}
+}
+.col{display:flex; flex-direction:column; gap:16px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 18px 14px; overflow:hidden}
+.card h2{
+  font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 12px;
+  display:flex; align-items:center; gap:8px;
+}
+.card h2 .dot{width:8px; height:8px; border-radius:50%; background:var(--sage)}
+.card h2 .count{margin-left:auto; font-family:'Inter'; font-size:12px; font-weight:600; color:var(--muted); background:var(--bg); border-radius:99px; padding:3px 10px}
+.empty{color:var(--muted); font-size:14px; padding:10px 2px 8px; font-style:italic}
+.err{background:var(--terra-soft); color:#8a4226; border-radius:12px; padding:10px 12px; font-size:13px; margin:6px 0}
+.err button{margin-top:6px}
+/* Capture */
+.capture{display:flex; gap:8px}
+.capture input{
+  flex:1; border:1px solid var(--line); background:var(--bg); border-radius:13px;
+  padding:13px 15px; font:inherit; color:var(--ink); outline:none; min-width:0;
+}
+.capture input:focus{border-color:var(--sage); background:#fff}
+.capture button{
+  border:none; background:var(--sage-deep); color:#fff; border-radius:13px;
+  padding:0 18px; font:inherit; font-weight:600; cursor:pointer; transition:transform .15s;
+}
+.capture button:active{transform:scale(.95)}
+.capture-hint{font-size:12px; color:var(--muted); margin:8px 2px 0}
+.toast{
+  position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(80px);
+  background:var(--ink); color:var(--card); padding:11px 20px; border-radius:99px;
+  font-size:14px; font-weight:500; opacity:0; transition:all .3s; z-index:60; box-shadow:var(--shadow);
+  max-width:85vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.toast.show{transform:translateX(-50%) translateY(0); opacity:1}
+/* Tasks */
+.tsection{margin:4px 0 10px}
+.tsection .tlabel{font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:10px 2px 6px}
+.tsection.overdue .tlabel{color:var(--terra)}
+.task{display:flex; align-items:flex-start; gap:11px; padding:9px 2px; border-bottom:1px solid var(--line); transition:opacity .35s, transform .35s}
+.task:last-child{border-bottom:none}
+.task.done{opacity:0; transform:translateX(14px)}
+.check{
+  width:21px; height:21px; min-width:21px; border-radius:50%; border:2px solid #BBB29E;
+  background:transparent; cursor:pointer; margin-top:1px; position:relative; transition:all .15s;
+}
+.task.p4 .check{border-color:var(--terra)} .task.p3 .check{border-color:var(--gold)}
+.check:active{transform:scale(.85)}
+.check.checked{background:var(--sage); border-color:var(--sage)}
+.check.checked::after{content:'✓'; color:#fff; font-size:12px; position:absolute; inset:0; display:flex; align-items:center; justify-content:center}
+.tbody{flex:1; min-width:0}
+.tname{font-size:14.5px}
+.tmeta{font-size:12px; color:var(--muted); margin-top:1px}
+.tmeta .od{color:var(--terra); font-weight:600}
+/* Routines */
+.routine{display:flex; align-items:center; gap:11px; padding:9px 2px; border-bottom:1px solid var(--line)}
+.routine:last-child{border-bottom:none}
+.routine .rname{flex:1; font-size:14.5px; min-width:0}
+.routine.donetoday .rname{color:var(--muted); text-decoration:line-through}
+.streak{font-size:12.5px; font-weight:600; color:var(--sage-deep); background:var(--sage-soft); border-radius:99px; padding:4px 10px; white-space:nowrap}
+.streak.hot{color:#9c5430; background:var(--terra-soft)}
+/* Agenda */
+.evt{display:flex; gap:12px; padding:9px 2px; border-bottom:1px solid var(--line)}
+.evt:last-child{border-bottom:none}
+.etime{min-width:62px; text-align:right; font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; padding-top:1px}
+.etime b{display:block; color:var(--ink); font-weight:600}
+.ebar{width:4px; border-radius:4px; background:var(--sage); opacity:.75}
+.ebody{flex:1; min-width:0}
+.ename{font-size:14.5px; font-weight:500}
+.eloc{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.evt.past{opacity:.45}
+.evt.now .ebar{background:var(--terra)}
+.dayhead{font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:10px 2px 6px}
+/* Mail */
+.mail{display:block; padding:9px 2px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit}
+.mail:last-child{border-bottom:none}
+.mfrom{font-size:13px; font-weight:600}
+.msub{font-size:13.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mtime{font-size:11.5px; color:var(--muted)}
+.connect{
+  width:100%; border:1.5px dashed var(--sage); background:var(--sage-soft); color:var(--sage-deep);
+  border-radius:13px; padding:12px; font:inherit; font-weight:600; cursor:pointer; margin:4px 0;
+}
+/* Settings */
+.overlay{position:fixed; inset:0; background:rgba(61,58,51,.35); backdrop-filter:blur(3px); z-index:50; display:none; align-items:flex-end; justify-content:center}
+@media(min-width:640px){.overlay{align-items:center}}
+.overlay.open{display:flex}
+.sheet{
+  background:var(--card); border-radius:22px 22px 0 0; width:100%; max-width:560px;
+  max-height:88vh; overflow-y:auto; padding:24px 22px calc(24px + env(safe-area-inset-bottom));
+}
+@media(min-width:640px){.sheet{border-radius:22px}}
+.sheet h2{font-family:'Fraunces',serif; margin:0 0 4px}
+.sheet p{color:var(--muted); font-size:13.5px; margin:4px 0 14px}
+.sheet label{display:block; font-size:13px; font-weight:600; margin:14px 0 5px}
+.sheet input{width:100%; border:1px solid var(--line); background:var(--bg); border-radius:11px; padding:11px 13px; font:inherit; font-size:14px}
+.sheet small{display:block; color:var(--muted); font-size:12px; margin-top:5px; line-height:1.5}
+.sheet small a{color:var(--sage-deep)}
+.btnrow{display:flex; gap:10px; margin-top:22px}
+.btn{flex:1; border:none; border-radius:13px; padding:13px; font:inherit; font-weight:600; cursor:pointer}
+.btn.primary{background:var(--sage-deep); color:#fff}
+.btn.ghost{background:var(--bg); color:var(--ink); border:1px solid var(--line)}
+.skeleton{height:14px; border-radius:7px; background:linear-gradient(90deg,var(--line),#f3eee1,var(--line)); background-size:200% 100%; animation:sh 1.4s infinite; margin:12px 0}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="greet">Hello, Adam</h1>
+      <div class="date" id="today"></div>
+    </div>
+    <div class="hbtns">
+      <button class="iconbtn" id="refreshBtn" title="Refresh">↻</button>
+      <button class="iconbtn" id="gearBtn" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <div class="card" style="margin-bottom:16px">
+    <form class="capture" id="captureForm">
+      <input id="captureInput" type="text" placeholder="Capture a task, note, or reminder…" autocomplete="off">
+      <button type="submit">Add</button>
+    </form>
+    <div class="capture-hint">Natural language works — try “pick up Sophia Friday 3pm” or “call pharmacy tomorrow”.</div>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card">
+        <h2><span class="dot"></span>Tasks<span class="count" id="taskCount"></span></h2>
+        <div id="tasksBox"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
+      </div>
+      <div class="card">
+        <h2><span class="dot" style="background:var(--gold)"></span>Routines<span class="count" id="routineCount"></span></h2>
+        <div id="routinesBox"><div class="skeleton"></div></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <h2><span class="dot" style="background:var(--terra)"></span>Agenda</h2>
+        <div id="agendaBox"><div class="skeleton"></div><div class="skeleton" style="width:60%"></div></div>
+      </div>
+      <div class="card">
+        <h2><span class="dot" style="background:#A4886B"></span>Mail<span class="count" id="mailCount"></span></h2>
+        <div id="mailBox"><div class="skeleton"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settings">
+  <div class="sheet">
+    <h2>Settings</h2>
+    <p>Keys are stored only in this browser — never sent anywhere except directly to Todoist and Google.</p>
+    <label>Todoist API token</label>
+    <input id="setTodoist" type="password" placeholder="Paste your token">
+    <small>Todoist → Settings → Integrations → <a href="https://app.todoist.com/app/settings/integrations/developer" target="_blank" rel="noopener">Developer</a> → copy API token.</small>
+    <label>Google OAuth Client ID</label>
+    <input id="setGoogle" type="text" placeholder="xxxxxxx.apps.googleusercontent.com">
+    <small>One-time setup in Google Cloud Console — see the README for the walkthrough. Needed for Agenda and Mail.</small>
+    <label>Routine label</label>
+    <input id="setRoutineLabel" type="text" placeholder="routine">
+    <small>Todoist tasks with this label appear under Routines with streak tracking.</small>
+    <div class="btnrow">
+      <button class="btn ghost" id="closeSettings">Close</button>
+      <button class="btn primary" id="saveSettings">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+<script>
+'use strict';
+/* ============ state & helpers ============ */
+const $ = id => document.getElementById(id);
+const S = {
+  get todoist(){ return localStorage.getItem('sb_todoist') || '' },
+  set todoist(v){ localStorage.setItem('sb_todoist', v) },
+  get gClient(){ return localStorage.getItem('sb_gclient') || '' },
+  set gClient(v){ localStorage.setItem('sb_gclient', v) },
+  get routineLabel(){ return (localStorage.getItem('sb_rlabel') || 'routine').toLowerCase() },
+  set routineLabel(v){ localStorage.setItem('sb_rlabel', v || 'routine') },
+  get gToken(){ const t = JSON.parse(localStorage.getItem('sb_gtoken')||'null'); return (t && t.exp > Date.now()) ? t.tok : null },
+  set gToken(v){ localStorage.setItem('sb_gtoken', JSON.stringify(v)) },
+};
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600) }
+function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML }
+function todayStr(d=new Date()){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') }
+function fmtTime(d){ return d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}) }
+function header(){
+  const h = new Date().getHours();
+  $('greet').textContent = (h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', Adam';
+  $('today').textContent = new Date().toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
+}
+
+/* ============ Todoist ============ */
+const TD = 'https://api.todoist.com/api/v1';
+async function td(path, opts={}){
+  const headers = { 'Authorization':'Bearer '+S.todoist, ...(opts.body?{'Content-Type':'application/json'}:{}) };
+  const r = await fetch(TD+path, {...opts, headers});
+  if(!r.ok) throw new Error('Todoist error '+r.status);
+  const ct = r.headers.get('content-type')||'';
+  return ct.includes('json') ? r.json() : null;
+}
+async function tdAll(path){
+  let out=[], cursor=null;
+  for(let i=0;i<10;i++){
+    const sep = path.includes('?') ? '&' : '?';
+    const d = await td(path + (cursor ? sep+'cursor='+encodeURIComponent(cursor) : ''));
+    if(Array.isArray(d)){ out = out.concat(d); break }
+    out = out.concat(d.results || d.items || []);
+    cursor = d.next_cursor || null;
+    if(!cursor) break;
+  }
+  return out;
+}
+function dueInfo(t){
+  if(!t.due || !t.due.date) return null;
+  const dt = t.due.datetime || t.due.date;            // may include time
+  const dateOnly = dt.slice(0,10);
+  const hasTime = dt.length > 10;
+  return { dateOnly, hasTime, dt: new Date(hasTime ? dt : dateOnly+'T23:59:59') };
+}
+let _completedCache = null;
+
+async function loadTasks(){
+  const box=$('tasksBox'), rbox=$('routinesBox');
+  if(!S.todoist){
+    box.innerHTML = '<button class="connect" onclick="openSettings()">Add your Todoist token to load tasks</button>';
+    rbox.innerHTML = '<div class="empty">Connect Todoist to see routines.</div>';
+    return;
+  }
+  try{
+    const tasks = await tdAll('/tasks?limit=200');
+    const today = todayStr();
+    const week = todayStr(new Date(Date.now()+7*864e5));
+    const rl = S.routineLabel;
+    const isRoutine = t => (t.labels||[]).some(l => l.toLowerCase() === rl);
+
+    const routines=[], overdue=[], dueToday=[], upcoming=[];
+    for(const t of tasks){
+      const d = dueInfo(t);
+      if(isRoutine(t)){ if(d && d.dateOnly <= today) routines.push(t); continue }
+      if(!d) continue;
+      if(d.dateOnly < today) overdue.push(t);
+      else if(d.dateOnly === today) dueToday.push(t);
+      else if(d.dateOnly <= week) upcoming.push(t);
+    }
+    const byDue = (a,b)=> (dueInfo(a)?.dt||0) - (dueInfo(b)?.dt||0);
+    overdue.sort(byDue); dueToday.sort(byDue); upcoming.sort(byDue);
+
+    $('taskCount').textContent = overdue.length + dueToday.length || '';
+    let h='';
+    const section=(label,arr,cls='')=>{
+      if(!arr.length) return;
+      h += `<div class="tsection ${cls}"><div class="tlabel">${label}</div>`;
+      for(const t of arr) h += taskRow(t, cls==='overdue');
+      h += '</div>';
+    };
+    section('Overdue', overdue, 'overdue');
+    section('Today', dueToday);
+    section('Next 7 days', upcoming.slice(0,8));
+    box.innerHTML = h || '<div class="empty">All clear. Nothing due. 🌿</div>';
+
+    renderRoutines(routines);
+  }catch(e){
+    box.innerHTML = `<div class="err">Couldn’t reach Todoist (${esc(e.message)}). Check your token in Settings.</div>`;
+    rbox.innerHTML = '';
+  }
+}
+function taskRow(t, isOver){
+  const d = dueInfo(t);
+  let meta = '';
+  if(d){
+    if(isOver){
+      const days = Math.max(1, Math.round((Date.now()-d.dt)/864e5));
+      meta = `<span class="od">${days===1?'1 day':days+' days'} overdue</span>`;
+    } else if(d.hasTime) meta = fmtTime(d.dt);
+    else if(d.dateOnly !== todayStr()) meta = d.dt.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+    if(t.due && t.due.is_recurring) meta += (meta?' · ':'')+'↻';
+  }
+  const pcls = t.priority===4?'p4':t.priority===3?'p3':'';
+  return `<div class="task ${pcls}" id="task-${t.id}">
+    <button class="check" onclick="completeTask('${t.id}')" aria-label="Complete"></button>
+    <div class="tbody"><div class="tname">${esc(t.content)}</div>${meta?`<div class="tmeta">${meta}</div>`:''}</div>
+  </div>`;
+}
+async function completeTask(id){
+  const el = $('task-'+id) || $('routine-'+id);
+  const chk = el && el.querySelector('.check');
+  if(chk) chk.classList.add('checked');
+  try{
+    await td('/tasks/'+id+'/close', {method:'POST'});
+    if(el && el.classList.contains('task')){ el.classList.add('done'); setTimeout(()=>{ el.remove(); }, 380) }
+    else { _completedCache = null; loadTasks() }      // routines: refresh streaks
+    toast('Done ✓');
+  }catch(e){ if(chk) chk.classList.remove('checked'); toast('Couldn’t complete — try again') }
+}
+
+/* ---- routines & streaks ---- */
+async function getCompleted(){
+  if(_completedCache) return _completedCache;
+  const until = new Date(); const since = new Date(Date.now()-89*864e5);
+  const iso = d => d.toISOString().slice(0,19)+'Z';
+  _completedCache = await tdAll(`/tasks/completed/by_completion_date?since=${encodeURIComponent(iso(since))}&until=${encodeURIComponent(iso(until))}&limit=200`);
+  return _completedCache;
+}
+function streakFor(task, completed){
+  const key = (task.content||'').trim().toLowerCase();
+  const days = new Set();
+  for(const c of completed){
+    const matches = String(c.task_id||c.id) === String(task.id) || (c.content||'').trim().toLowerCase() === key;
+    if(matches && c.completed_at){
+      const local = new Date(c.completed_at);
+      days.add(todayStr(local));
+    }
+  }
+  let streak = 0;
+  let cur = days.has(todayStr()) ? new Date() : new Date(Date.now()-864e5);
+  while(days.has(todayStr(cur))){ streak++; cur = new Date(cur.getTime()-864e5) }
+  return { streak, doneToday: days.has(todayStr()) };
+}
+async function renderRoutines(routines){
+  const rbox = $('routinesBox');
+  if(!routines.length){ $('routineCount').textContent=''; rbox.innerHTML = `<div class="empty">Label any recurring Todoist task “${esc(S.routineLabel)}” and it shows up here with a streak.</div>`; return }
+  let completed = [];
+  try{ completed = await getCompleted() }catch(e){ /* streaks unavailable; still render */ }
+  let h='', open=0;
+  for(const t of routines){
+    const {streak, doneToday} = streakFor(t, completed);
+    if(!doneToday) open++;
+    const flame = streak >= 7 ? '🔥' : '✦';
+    h += `<div class="routine ${doneToday?'donetoday':''}" id="routine-${t.id}">
+      <button class="check ${doneToday?'checked':''}" ${doneToday?'disabled':''} onclick="completeTask('${t.id}')" aria-label="Complete"></button>
+      <div class="rname">${esc(t.content)}</div>
+      <div class="streak ${streak>=7?'hot':''}">${flame} ${streak} day${streak===1?'':'s'}</div>
+    </div>`;
+  }
+  $('routineCount').textContent = open || '';
+  rbox.innerHTML = h;
+}
+
+/* ---- quick capture ---- */
+$('captureForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const inp = $('captureInput'); const text = inp.value.trim();
+  if(!text) return;
+  if(!S.todoist){ toast('Add your Todoist token first'); openSettings(); return }
+  inp.value=''; inp.blur();
+  try{
+    try{ await td('/tasks/quick', {method:'POST', body:JSON.stringify({text})}) }
+    catch(_){ await td('/tasks', {method:'POST', body:JSON.stringify({content:text})}) }
+    toast('Captured → Todoist');
+    loadTasks();
+  }catch(e){ inp.value = text; toast('Couldn’t save — try again') }
+});
+
+/* ============ Google (Calendar + Gmail) ============ */
+let tokenClient = null, gisReady = false;
+function gisLoaded(){ gisReady = true; if(S.gClient) initGIS() }
+function initGIS(){
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: S.gClient,
+    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly',
+    callback: resp => {
+      if(resp.access_token){
+        S.gToken = { tok: resp.access_token, exp: Date.now() + (resp.expires_in-90)*1000 };
+        loadGoogle();
+      }
+    }
+  });
+}
+function connectGoogle(){ if(!tokenClient && gisReady && S.gClient) initGIS(); if(tokenClient) tokenClient.requestAccessToken({prompt:''}) ; else toast('Add your Google Client ID in Settings') }
+async function gFetch(url){
+  const r = await fetch(url, {headers:{Authorization:'Bearer '+S.gToken}});
+  if(r.status===401||r.status===403){ localStorage.removeItem('sb_gtoken'); throw new Error('auth') }
+  if(!r.ok) throw new Error('Google error '+r.status);
+  return r.json();
+}
+function googleGate(boxId, label){
+  $(boxId).innerHTML = S.gClient
+    ? `<button class="connect" onclick="connectGoogle()">Connect Google — ${label}</button>`
+    : `<button class="connect" onclick="openSettings()">Add your Google Client ID for ${label}</button>`;
+}
+async function loadGoogle(){
+  if(!S.gToken){ googleGate('agendaBox','Agenda'); googleGate('mailBox','Mail'); $('mailCount').textContent=''; return }
+  loadAgenda(); loadMail();
+}
+async function loadAgenda(){
+  const box=$('agendaBox');
+  try{
+    const calList = await gFetch('https://www.googleapis.com/calendar/v3/users/me/calendarList');
+    const cals = (calList.items||[]).filter(c=>c.selected || c.primary).slice(0,8);
+    const t0 = new Date(); t0.setHours(0,0,0,0);
+    const t1 = new Date(t0.getTime()+2*864e5);
+    let evts=[];
+    await Promise.all(cals.map(async c=>{
+      try{
+        const d = await gFetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(c.id)}/events?timeMin=${t0.toISOString()}&timeMax=${t1.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=20`);
+        for(const e of (d.items||[])) if(e.status!=='cancelled') evts.push({...e, _color:c.backgroundColor||'#7C9082'});
+      }catch(_){}
+    }));
+    const seen=new Set();
+    evts = evts.filter(e=>{ const k=(e.iCalUID||e.id)+(e.start?.dateTime||e.start?.date); if(seen.has(k))return false; seen.add(k); return true });
+    evts.sort((a,b)=> new Date(a.start?.dateTime||a.start?.date) - new Date(b.start?.dateTime||b.start?.date));
+    if(!evts.length){ box.innerHTML='<div class="empty">No events today or tomorrow. Enjoy the space.</div>'; return }
+    const now=new Date(), today=todayStr();
+    let h='', lastDay='';
+    for(const e of evts){
+      const allDay = !e.start?.dateTime;
+      const s = new Date(e.start?.dateTime || e.start?.date+'T00:00');
+      const en = new Date(e.end?.dateTime || e.end?.date+'T00:00');
+      const day = todayStr(s);
+      if(allDay && day < today) continue;
+      if(day !== lastDay){ h += `<div class="dayhead">${day===today?'Today':s.toLocaleDateString([], {weekday:'long'})}</div>`; lastDay=day }
+      const past = !allDay && en < now, current = !allDay && s<=now && en>=now;
+      h += `<div class="evt ${past?'past':''} ${current?'now':''}">
+        <div class="etime">${allDay?'all day':`<b>${fmtTime(s)}</b>${fmtTime(en)}`}</div>
+        <div class="ebar" style="background:${esc(e._color)}"></div>
+        <div class="ebody"><div class="ename">${esc(e.summary||'(no title)')}</div>${e.location?`<div class="eloc">${esc(e.location)}</div>`:''}</div>
+      </div>`;
+    }
+    box.innerHTML = h || '<div class="empty">No events today or tomorrow.</div>';
+  }catch(e){
+    if(e.message==='auth') googleGate('agendaBox','Agenda');
+    else box.innerHTML = `<div class="err">Couldn’t load calendar (${esc(e.message)}).</div>`;
+  }
+}
+async function loadMail(){
+  const box=$('mailBox');
+  try{
+    const inbox = await gFetch('https://gmail.googleapis.com/gmail/v1/users/me/labels/INBOX');
+    $('mailCount').textContent = inbox.messagesUnread ? inbox.messagesUnread+' unread' : '';
+    const list = await gFetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q='+encodeURIComponent('in:inbox is:unread')+'&maxResults=6');
+    if(!list.messages || !list.messages.length){ box.innerHTML='<div class="empty">Inbox zero. ✦</div>'; return }
+    const msgs = await Promise.all(list.messages.map(m =>
+      gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`)
+    ));
+    let h='';
+    for(const m of msgs){
+      const hd = n => (m.payload?.headers||[]).find(x=>x.name===n)?.value || '';
+      const from = hd('From').replace(/<.*>/,'').replace(/"/g,'').trim() || hd('From');
+      const when = new Date(Number(m.internalDate));
+      const rel = todayStr(when)===todayStr() ? fmtTime(when) : when.toLocaleDateString([], {month:'short', day:'numeric'});
+      h += `<a class="mail" href="https://mail.google.com/mail/u/0/#inbox/${m.id}" target="_blank" rel="noopener">
+        <div style="display:flex;justify-content:space-between;gap:8px"><span class="mfrom">${esc(from)}</span><span class="mtime">${rel}</span></div>
+        <div class="msub">${esc(hd('Subject')||'(no subject)')}</div>
+      </a>`;
+    }
+    box.innerHTML = h;
+  }catch(e){
+    if(e.message==='auth') googleGate('mailBox','Mail');
+    else box.innerHTML = `<div class="err">Couldn’t load mail (${esc(e.message)}).</div>`;
+  }
+}
+
+/* ============ settings & lifecycle ============ */
+function openSettings(){
+  $('setTodoist').value = S.todoist; $('setGoogle').value = S.gClient; $('setRoutineLabel').value = S.routineLabel;
+  $('settings').classList.add('open');
+}
+$('gearBtn').onclick = openSettings;
+$('closeSettings').onclick = ()=> $('settings').classList.remove('open');
+$('settings').addEventListener('click', e=>{ if(e.target===$('settings')) $('settings').classList.remove('open') });
+$('saveSettings').onclick = ()=>{
+  S.todoist = $('setTodoist').value.trim();
+  const newClient = $('setGoogle').value.trim();
+  if(newClient !== S.gClient){ S.gClient = newClient; localStorage.removeItem('sb_gtoken'); tokenClient=null; if(gisReady && newClient) initGIS() }
+  S.routineLabel = $('setRoutineLabel').value.trim().toLowerCase();
+  $('settings').classList.remove('open');
+  refresh(); toast('Saved');
+};
+function refresh(){ header(); _completedCache=null; loadTasks(); loadGoogle() }
+$('refreshBtn').onclick = ()=>{ refresh(); toast('Refreshing…') };
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh() });
+setInterval(()=>{ if(!document.hidden) refresh() }, 5*60*1000);
+refresh();
+if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
