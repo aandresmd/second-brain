@@ -117,6 +117,10 @@ h1{font-family:'Fraunces',serif; font-weight:600; font-size:30px; margin:0; lett
 .evt.now .ebar{background:var(--terra)}
 .dayhead{font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:10px 2px 6px}
 /* Mail */
+.mailscroll{max-height:360px; overflow-y:auto; overscroll-behavior:contain; margin-right:-6px; padding-right:6px}
+.mlabel{font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:10px 2px 6px; position:sticky; top:0; background:var(--card); padding:4px 2px}
+.mlabel.urgent{color:var(--terra)}
+.mail.urgentmail{border-left:3px solid var(--terra); padding-left:8px; margin-left:-2px}
 .mail{display:block; padding:9px 2px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit}
 .mail:last-child{border-bottom:none}
 .mfrom{font-size:13px; font-weight:600}
@@ -497,22 +501,28 @@ async function loadMail(){
   try{
     const inbox = await gFetch('https://gmail.googleapis.com/gmail/v1/users/me/labels/INBOX');
     $('mailCount').textContent = inbox.messagesUnread ? inbox.messagesUnread+' unread' : '';
-    const list = await gFetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q='+encodeURIComponent('in:inbox is:unread')+'&maxResults=6');
+    const list = await gFetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q='+encodeURIComponent('in:inbox is:unread')+'&maxResults=20');
     if(!list.messages || !list.messages.length){ box.innerHTML='<div class="empty">Inbox zero. ✦</div>'; return }
     const msgs = await Promise.all(list.messages.map(m =>
       gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`)
     ));
-    let h='';
-    for(const m of msgs){
+    const row = (m, urgent) => {
       const hd = n => (m.payload?.headers||[]).find(x=>x.name===n)?.value || '';
       const from = hd('From').replace(/<.*>/,'').replace(/"/g,'').trim() || hd('From');
       const when = new Date(Number(m.internalDate));
       const rel = todayStr(when)===todayStr() ? fmtTime(when) : when.toLocaleDateString([], {month:'short', day:'numeric'});
-      h += `<a class="mail" href="https://mail.google.com/mail/u/0/#inbox/${m.id}" target="_blank" rel="noopener">
+      return `<a class="mail ${urgent?'urgentmail':''}" href="https://mail.google.com/mail/u/0/#inbox/${m.id}" target="_blank" rel="noopener">
         <div style="display:flex;justify-content:space-between;gap:8px"><span class="mfrom">${esc(from)}</span><span class="mtime">${rel}</span></div>
         <div class="msub">${esc(hd('Subject')||'(no subject)')}</div>
       </a>`;
-    }
+    };
+    // Urgent = Gmail's importance marker, starred, or a thread you're in that's awaiting a reply (Re:)
+    const isUrgent = m => (m.labelIds||[]).includes('IMPORTANT') || (m.labelIds||[]).includes('STARRED') || /^re:/i.test(((m.payload?.headers||[]).find(x=>x.name==='Subject')?.value||''));
+    const urgent = msgs.filter(isUrgent), rest = msgs.filter(m=>!isUrgent(m));
+    let h='<div class="mailscroll">';
+    if(urgent.length) h += '<div class="mlabel urgent">Needs attention</div>' + urgent.map(m=>row(m,true)).join('');
+    if(rest.length) h += `<div class="mlabel">${urgent.length?'Everything else':'Unread'}</div>` + rest.map(m=>row(m,false)).join('');
+    h += '</div>';
     box.innerHTML = h;
   }catch(e){
     if(e.message==='auth') googleGate('mailBox','Mail');
