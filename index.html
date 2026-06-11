@@ -357,6 +357,17 @@ async function getCompleted(){
   _completedCache = await tdAll(`/tasks/completed/by_completion_date?since=${encodeURIComponent(iso(since))}&until=${encodeURIComponent(iso(until))}&limit=200`);
   return _completedCache;
 }
+function scheduledDays(task){
+  // Parse weekday names out of the recurrence string ("every mon, wed, fri at 8am").
+  // Returns a Set of weekday numbers (0=Sun), or null = every day.
+  const s = (task.due?.string || '').toLowerCase();
+  const map = {sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6};
+  const found = new Set();
+  for(const k in map) if(new RegExp('\\b'+k).test(s)) found.add(map[k]);
+  if(/weekday/.test(s)) [1,2,3,4,5].forEach(d=>found.add(d));
+  if(/weekend/.test(s)) [0,6].forEach(d=>found.add(d));
+  return found.size ? found : null;
+}
 function streakFor(task, completed){
   const key = (task.content||'').trim().toLowerCase();
   const days = new Set();
@@ -367,9 +378,19 @@ function streakFor(task, completed){
       days.add(todayStr(local));
     }
   }
+  // Count consecutive *scheduled* days with a completion; off days don't break the streak.
+  const sched = scheduledDays(task);
+  const onSched = d => !sched || sched.has(d.getDay());
   let streak = 0;
-  let cur = days.has(todayStr()) ? new Date() : new Date(Date.now()-864e5);
-  while(days.has(todayStr(cur))){ streak++; cur = new Date(cur.getTime()-864e5) }
+  let cur = new Date();
+  if(!(onSched(cur) && days.has(todayStr(cur)))) cur = new Date(cur.getTime()-864e5); // today still in progress
+  for(let i=0; i<92; i++){
+    if(onSched(cur)){
+      if(days.has(todayStr(cur))) streak++;
+      else break;
+    }
+    cur = new Date(cur.getTime()-864e5);
+  }
   return { streak, doneToday: days.has(todayStr()) };
 }
 async function renderRoutines(routines){
