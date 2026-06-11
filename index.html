@@ -179,7 +179,7 @@ h1{font-family:'Fraunces',serif; font-weight:600; font-size:30px; margin:0; lett
       <input id="captureInput" type="text" placeholder="Capture a task, note, or reminder…" autocomplete="off">
       <button type="submit">Add</button>
     </form>
-    <div class="capture-hint">Natural language works — try “pick up Sophia Friday 3pm” or “call pharmacy tomorrow”.</div>
+    <div class="capture-hint">Natural language works — “call pharmacy tomorrow” → Todoist. Start with “cal” for appointments: “cal Dentist Friday 2pm” → Google Calendar.</div>
   </div>
 
   <div class="links">
@@ -439,6 +439,25 @@ $('captureForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const inp = $('captureInput'); const text = inp.value.trim();
   if(!text) return;
+  // "cal ..." → Google Calendar appointment (natural language via quickAdd)
+  if(/^cal\s+/i.test(text)){
+    if(!S.gToken){ toast('Tap Connect Google first'); return }
+    const evText = text.replace(/^cal\s+/i,'');
+    inp.value=''; inp.blur();
+    try{
+      const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/quickAdd?text='+encodeURIComponent(evText), {method:'POST', headers:{Authorization:'Bearer '+S.gToken}});
+      if(r.status===401||r.status===403) throw new Error('scope');
+      if(!r.ok) throw new Error('Google error '+r.status);
+      const ev = await r.json();
+      toast(ev.start ? 'Added to Calendar ✓' : 'Added to Calendar');
+      loadAgenda();
+    }catch(err){
+      inp.value = text;
+      toast(err.message==='scope' ? 'Tap Connect Google to grant calendar access' : 'Couldn’t add — try again');
+      if(err.message==='scope') localStorage.removeItem('sb_gtoken'), loadGoogle();
+    }
+    return;
+  }
   if(!S.todoist){ toast('Add your Todoist token first'); openSettings(); return }
   inp.value=''; inp.blur();
   try{
@@ -456,7 +475,7 @@ let _silentTry = false;
 function initGIS(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: S.gClient,
-    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly',
+    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.readonly',
     callback: resp => {
       if(resp.access_token){
         S.gToken = { tok: resp.access_token, exp: Date.now() + (resp.expires_in-90)*1000 };
@@ -597,6 +616,8 @@ $('saveSettings').onclick = ()=>{
   $('settings').classList.remove('open');
   refresh(); toast('Saved');
 };
+// scope v2 (calendar write): tokens granted before this need re-consent
+if(localStorage.getItem('sb_scopev') !== '2'){ localStorage.removeItem('sb_gtoken'); localStorage.setItem('sb_scopev','2') }
 function refresh(){ header(); _completedCache=null; loadTasks(); loadGoogle() }
 $('refreshBtn').onclick = ()=>{ refresh(); toast('Refreshing…') };
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh() });
