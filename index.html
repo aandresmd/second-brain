@@ -645,6 +645,12 @@ function refresh(){ header(); _completedCache=null; loadTasks(); loadGoogle() }
 $('refreshBtn').onclick = ()=>{ refresh(); toast('Refreshing…') };
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh() });
 setInterval(()=>{ if(!document.hidden) refresh() }, 5*60*1000);
+// quietly renew the Google token before it expires, so sign-in popups are rare
+setInterval(()=>{
+  if(document.hidden || !tokenClient) return;
+  const t = JSON.parse(localStorage.getItem('sb_gtoken')||'null');
+  if(t && (t.exp - Date.now()) < 10*60*1000){ _silentTry = true; tokenClient.requestAccessToken({prompt:''}) }
+}, 5*60*1000);
 refresh();
 if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
