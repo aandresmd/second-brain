@@ -161,6 +161,11 @@ h1{font-family:'Fraunces',serif; font-weight:600; font-size:30px; margin:0; lett
 .btn.ghost{background:var(--bg); color:var(--ink); border:1px solid var(--line)}
 .skeleton{height:14px; border-radius:7px; background:linear-gradient(90deg,var(--line),#f3eee1,var(--line)); background-size:200% 100%; animation:sh 1.4s infinite; margin:12px 0}
 @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* Trails */
+.trailframe{border:1px solid var(--line); border-radius:13px; overflow:hidden; background:var(--bg); height:520px}
+.trailframe iframe{width:100%; height:100%; border:0; display:block}
+.trailmeta{font-size:12px; color:var(--muted); margin:10px 2px 0}
+.card h2 a.count{text-decoration:none}
 </style>
 </head>
 <body>
@@ -218,6 +223,14 @@ h1{font-family:'Fraunces',serif; font-weight:600; font-size:30px; margin:0; lett
         <div id="mailBox"><div class="skeleton"></div></div>
       </div>
     </div>
+  </div>
+
+  <div class="card trailcard" style="margin-top:16px">
+    <h2><span class="dot"></span>Trails<a class="count" href="https://indy.flowfeed.app/" target="_blank" rel="noopener">Central Indiana ↗</a></h2>
+    <div class="trailframe">
+      <iframe src="https://indy.flowfeed.app/" title="Flowfeed — Central Indiana mountain bike trail conditions" loading="lazy" referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div class="trailmeta">Live open/closed conditions via Flowfeed.</div>
   </div>
 </div>
 
